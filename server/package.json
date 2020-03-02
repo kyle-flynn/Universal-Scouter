@@ -1,0 +1,11 @@
+{
+  "name": "universal-scouter-server",
+  "version": "1.0.0",
+  "description": "Server application for the universal-scouter",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Kyle Flynn",
+  "license": "ISC"
+}
