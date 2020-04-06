@@ -1,13 +1,28 @@
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* Used for classes that override the Material UI styling rules */
+.schema-header {
+  padding: 8px;
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+.schema-paper {
+  /*padding: 16px !important;*/
+}
+
+.schema-list {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.schema-list-item {
+  /*padding-left: 0 !important;*/
+  /*padding-right: 0 !important;*/
+}
+
+.schema-paper-content {
+  padding: 8px 8px 16px 8px;
+}
+
+.schema-select-control {
+  margin: 4px;
+  min-width: 120px;
+  max-width: 300px;
 }
