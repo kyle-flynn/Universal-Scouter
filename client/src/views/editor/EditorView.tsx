@@ -1,4 +1,5 @@
 import * as React from 'react';
+import AddIcon from '@material-ui/icons/Add';
 import Button from '@material-ui/core/Button';
 import Checkbox from '@material-ui/core/Checkbox';
 import DeleteIcon from '@material-ui/icons/Delete';
@@ -14,6 +15,8 @@ import ListItemText from '@material-ui/core/ListItemText';
 import ListItemSecondaryAction from '@material-ui/core/ListItemSecondaryAction';
 import MenuItem from '@material-ui/core/MenuItem';
 import Paper from '@material-ui/core/Paper';
+import RestoreIcon from '@material-ui/icons/Restore';
+import SaveIcon from '@material-ui/icons/Save';
 import Select from '@material-ui/core/Select';
 import TextField from '@material-ui/core/TextField';
 import Typography from '@material-ui/core/Typography';
@@ -133,7 +136,7 @@ class EditorView extends React.Component {
                   fullWidth
                   variant="contained"
                   color="primary"
-                  endIcon={<DeleteIcon/>}
+                  endIcon={<AddIcon/>}
                 >
                   Add
                 </Button>
@@ -183,7 +186,7 @@ class EditorView extends React.Component {
                   fullWidth
                   variant="contained"
                   color="primary"
-                  endIcon={<DeleteIcon/>}
+                  endIcon={<AddIcon/>}
                 >
                   Add
                 </Button>
@@ -212,7 +215,7 @@ class EditorView extends React.Component {
                   fullWidth
                   variant="contained"
                   color="primary"
-                  endIcon={<DeleteIcon/>}
+                  endIcon={<SaveIcon/>}
                 >
                   Save Schema
                 </Button>
@@ -223,7 +226,7 @@ class EditorView extends React.Component {
                   fullWidth
                   variant="contained"
                   color="primary"
-                  endIcon={<DeleteIcon/>}
+                  endIcon={<RestoreIcon/>}
                 >
                   Reset Schema
                 </Button>

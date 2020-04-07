@@ -5,6 +5,7 @@ import HomeIcon from '@material-ui/icons/Home';
 import DataUsageIcon from '@material-ui/icons/DataUsage';
 import OpenInNewIcon from '@material-ui/icons/OpenInNew';
 import DashboardIcon from '@material-ui/icons/Dashboard';
+import DashboardView from './views/dashboard';
 import HomeView from './views/home';
 import EditorView from './views/editor';
 import ScoutView from './views/scout';
@@ -48,7 +49,7 @@ const routes: IAppRoute[] = [
     icon: <DashboardIcon/>,
     to: '/dashboard',
     group: 0,
-    component: (route: RouteProps) => <div>Data dashboard!</div>,
+    component: (route: RouteProps) => <DashboardView/>,
     visible: true
   },
   {
