@@ -1,0 +1,22 @@
+{
+  "name": "universal-scouter-shared",
+  "version": "1.0.10",
+  "description": "Shared codebase for the universal-scouter",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "author": "Kyle Flynn",
+  "license": "ISC",
+  "dependencies": {
+    "jest": "^24.9.0",
+    "ts-jest": "^24.3.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^25.2.1",
+    "@types/node": "^13.11.1",
+    "tslint": "^6.1.1",
+    "typescript": "^3.8.3"
+  }
+}

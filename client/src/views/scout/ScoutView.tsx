@@ -1,28 +1,65 @@
 import * as React from 'react';
-import DeleteIcon from '@material-ui/icons/Delete';
 import Divider from '@material-ui/core/Divider';
 import FormControl from '@material-ui/core/FormControl';
 import FormHelperText from '@material-ui/core/FormHelperText';
 import Grid from '@material-ui/core/Grid';
-import IconButton from '@material-ui/core/IconButton';
 import InputLabel from '@material-ui/core/InputLabel';
-import List from '@material-ui/core/List';
-import ListItem from '@material-ui/core/ListItem';
-import ListItemText from '@material-ui/core/ListItemText';
-import ListItemSecondaryAction from '@material-ui/core/ListItemSecondaryAction';
 import NativeSelect from '@material-ui/core/NativeSelect';
 import Paper from '@material-ui/core/Paper';
 import SaveIcon from '@material-ui/icons/Save';
 import Typography from '@material-ui/core/Typography';
 import Button from "@material-ui/core/Button";
 import RestoreIcon from "@material-ui/icons/Restore";
+import {
+  BooleanProperty,
+  DropdownProperty,
+  NumberProperty,
+  Property,
+  Schema,
+  SchemaEntry,
+  StringProperty
+} from 'universal-scouter-shared';
+import SchemaProvider, {ISchemasResponse} from "../../providers/SchemaProvider";
+import TextField from "@material-ui/core/TextField";
+import FormControlLabel from '@material-ui/core/FormControlLabel';
+import Checkbox from '@material-ui/core/Checkbox';
 
-class ScoutView extends React.Component {
+interface IState {
+  schemas: Schema[];
+  schema: Schema;
+  entry: SchemaEntry;
+}
+
+class ScoutView extends React.Component<{}, IState> {
   public constructor(props: any) {
     super(props);
+
+    this.state = {
+      schemas: [],
+      schema: new Schema(),
+      entry: new SchemaEntry()
+    };
+
+    this.selectSchema = this.selectSchema.bind(this);
+    this.resetSchema = this.resetSchema.bind(this);
+    this.updateProperty = this.updateProperty.bind(this);
+  }
+
+  public componentDidMount(): void {
+    SchemaProvider.getSchemas().then((res: ISchemasResponse) => {
+      if (res.error) {
+        console.log(res.error);
+      } else {
+        this.setState({schemas: res.schemas});
+      }
+    });
   }
 
   public render() {
+    const {schema, schemas} = this.state;
+    const schemaOptions = schemas.map((s: Schema) => {
+      return (<option key={s.id} value={s.id}>{s.name}</option>);
+    });
     return (
       <div>
         <Typography variant='h3'>Scouting Data</Typography>
@@ -39,13 +76,12 @@ class ScoutView extends React.Component {
                       name: 'schema',
                       id: 'schema-native-helper',
                     }}
+                    onChange={this.selectSchema}
                   >
-                    <option aria-label="None" value="" />
-                    <option value={10}>Ten</option>
-                    <option value={20}>Twenty</option>
-                    <option value={30}>Thirty</option>
+                    <option aria-label='None' value=''/>
+                    {schemaOptions}
                   </NativeSelect>
-                  <FormHelperText>Some important helper text</FormHelperText>
+                  <FormHelperText>{schema.id > -1 ? schema.description : 'Please select a schema'}</FormHelperText>
                 </FormControl>
               </Grid>
             </Grid>
@@ -54,64 +90,193 @@ class ScoutView extends React.Component {
 
         <div className='space'/>
 
-        <Paper className='schema-paper'>
-          <Typography className='schema-header' variant='h5'>Schema</Typography>
-          <Divider/>
-          <div className='schema-paper-content'>
-            <Typography variant='body1'>Category 1</Typography>
+        {
+          schema.id > -1 &&
+          this.renderSchema(schema)
+        }
 
-            <br/>
-            <Divider/>
-            <Typography variant='body1'>Actions</Typography>
-            <br/>
-
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6} md={3} lg={2}>
-                <Button
-                  fullWidth
-                  variant="contained"
-                  color="primary"
-                  endIcon={<SaveIcon/>}
-                >
-                  Submit
-                </Button>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3} lg={2}>
-                <Button
-                  fullWidth
-                  variant="contained"
-                  color="primary"
-                  endIcon={<RestoreIcon/>}
-                >
-                  Reset
-                </Button>
-              </Grid>
-            </Grid>
-          </div>
-        </Paper>
       </div>
     );
   }
 
-  private renderSchemas(elementNumber: number): React.ReactElement {
-    let view: any[] = [];
-    for (let i = 0; i < elementNumber; i++) {
-      view.push(
-        <ListItem key={i} className='schema-list-item' button divider>
-          <ListItemText primary={`Schema ${i + 1}`}/>
-          <ListItemSecondaryAction>
-            <IconButton color='secondary' edge="end" aria-label="delete">
-              <DeleteIcon />
-            </IconButton>
-          </ListItemSecondaryAction>
-        </ListItem>
-      );
-    }
+  private renderSchema(schema: Schema) {
+    const propertyView = schema.properties.map((p: Property) => {
+      return this.renderProperty(p);
+    });
     return (
-      <List className='schema-list'>
-        {view}
-      </List>
+      <Paper className='schema-paper'>
+        <Typography className='schema-header' variant='h5'>{schema.name}</Typography>
+        <Divider/>
+        <div className='schema-paper-content'>
+          {/*<Typography variant='body1'>Category 1</Typography>*/}
+
+          <Grid container spacing={3}>
+            {propertyView}
+          </Grid>
+
+          <br/>
+          <Divider/>
+          <Typography variant='body1'>Actions</Typography>
+          <br/>
+
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={3} lg={2}>
+              <Button
+                disabled={!this.canSubmit()}
+                fullWidth
+                variant="contained"
+                color="primary"
+                endIcon={<SaveIcon/>}
+              >
+                Submit
+              </Button>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3} lg={2}>
+              <Button
+                fullWidth
+                variant="contained"
+                color="primary"
+                endIcon={<RestoreIcon/>}
+                onClick={this.resetSchema}
+              >
+                Reset
+              </Button>
+            </Grid>
+          </Grid>
+        </div>
+      </Paper>
     );
+  }
+
+  private renderProperty(property: Property) {
+    const {entry} = this.state;
+    const value: any = (entry.properties as any)[property.getJSONName()];
+    switch (property.type) {
+      case 'string':
+        const stringProp: StringProperty = property as StringProperty;
+        return (
+          <Grid key={`${property.name}-${property.type}`} item xs={12} sm={6} md={3} lg={3}>
+            <TextField name={stringProp.getJSONName()} value={value} fullWidth required label={stringProp.name} onChange={this.updateProperty}/>
+          </Grid>
+        );
+      case 'number':
+        const numberProp: NumberProperty = property as NumberProperty;
+        return (
+          <Grid key={`${property.name}-${property.type}`} item xs={12} sm={6} md={3} lg={3}>
+            <TextField name={numberProp.getJSONName()} value={value} fullWidth required label={numberProp.name} onChange={this.updateProperty}/>
+          </Grid>
+        );
+      case 'boolean':
+        const booleanProp: BooleanProperty = property as BooleanProperty;
+        return (
+          <Grid key={`${property.name}-${property.type}`} item xs={12} sm={6} md={3} lg={3}>
+            <FormControlLabel
+              control={<Checkbox name={booleanProp.getJSONName()} checked={value} onChange={this.updateProperty}/>}
+              label={booleanProp.name}
+            />
+          </Grid>
+        );
+      case 'dropdown':
+        const dropdownProp: DropdownProperty = property as DropdownProperty;
+        return (
+          <Grid key={`${property.name}-${property.type}`} item xs={12} sm={6} md={3} lg={3}>
+            <FormControl fullWidth>
+              <InputLabel id="property-dropdown-label">{dropdownProp.name}</InputLabel>
+              <NativeSelect
+                value={value}
+                inputProps={{
+                  name: dropdownProp.getJSONName(),
+                  id: 'property-dropdown-label-placeholder',
+                }}
+                onChange={this.updateProperty}
+              >
+                {
+                  dropdownProp.options.map((opt: string, i: number) => {
+                    return (
+                      <option key={`${property.name} option ${i}`} value={opt}>{opt}</option>
+                    );
+                  })
+                }
+              </NativeSelect>
+            </FormControl>
+          </Grid>
+        );
+      default:
+        const defaultProp: StringProperty = property as StringProperty;
+        return (
+          <Grid key={`${property.name}-${property.type}`} item xs={12} sm={6} md={3} lg={3}>
+            <TextField name={defaultProp.getJSONName()} value={value} fullWidth required label={defaultProp.name} onChange={this.updateProperty}/>
+          </Grid>
+        );
+    }
+  }
+
+  private resetSchema(): void {
+    const {schema, entry} = this.state;
+    for (const property of schema.properties) {
+      let value: any = (property as StringProperty).defaultValue;
+      if (typeof value === 'undefined') {
+        value = '';
+      }
+      (entry.properties as any)[property.getJSONName()] = value;
+    }
+    this.forceUpdate();
+  }
+
+  private selectSchema(event: React.ChangeEvent<HTMLSelectElement>) {
+    const {schemas} = this.state;
+
+    if (event.target.value.length <= 0) {
+      this.setState({schema: new Schema(), entry: new SchemaEntry()});
+      return;
+    }
+
+    const id: number = parseInt(event.target.value, 10);
+    const schema: Schema = schemas[id];
+    const entry: SchemaEntry = new SchemaEntry();
+    for (const property of schema.properties) {
+      switch (property.type) {
+        case 'string':
+          const stringProp: StringProperty = property as StringProperty;
+          (entry.properties as any)[property.getJSONName()] = stringProp.defaultValue;
+          break;
+        case 'number':
+          const numberProp: NumberProperty = property as NumberProperty;
+          (entry.properties as any)[property.getJSONName()] = numberProp.defaultValue;
+          break;
+        case 'boolean':
+          const booleanProp: BooleanProperty = property as BooleanProperty;
+          (entry.properties as any)[property.getJSONName()] = booleanProp.defaultValue;
+          break;
+        case 'dropdown':
+          const dropdownProp: DropdownProperty = property as DropdownProperty;
+          (entry.properties as any)[property.getJSONName()] = dropdownProp.defaultValue;
+          break;
+        default:
+          const defaultProp: StringProperty = property as StringProperty;
+          (entry.properties as any)[property.getJSONName()] = defaultProp.defaultValue;
+      }
+    }
+    this.setState({schema, entry});
+  }
+
+  private updateProperty(event: React.ChangeEvent) {
+    const {entry} = this.state;
+    (entry.properties as any)[(event.target as any).name] = (event.target as any).type !== 'checkbox' ? (event.target as any).value : (event.target as any).checked;
+    this.forceUpdate();
+  }
+
+  private canSubmit(): boolean {
+    const {entry} = this.state;
+    for (const property in entry.properties) {
+      if (entry.properties.hasOwnProperty(property)) {
+        const value = (entry.properties as any)[property];
+        if (typeof value === 'undefined' || (typeof value === 'string' && value.length <= 0)) {
+          return false;
+        }
+      }
+    }
+    return true;
   }
 }
 

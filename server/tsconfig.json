@@ -10,8 +10,10 @@
     "emitDecoratorMetadata": true,
     "moduleResolution": "node",
     "importHelpers": true,
+    "esModuleInterop": true,
     "types": [
-      "node"
+      "node",
+      "express"
     ],
     "typeRoots": [
       "node_modules/@types"

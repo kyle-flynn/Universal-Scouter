@@ -8,13 +8,41 @@ import InputLabel from "@material-ui/core/InputLabel";
 import NativeSelect from "@material-ui/core/NativeSelect";
 import FormHelperText from "@material-ui/core/FormHelperText";
 import TablePagination from '../../components/TablePagination';
+import {Schema} from 'universal-scouter-shared';
+import SchemaProvider, {ISchemasResponse} from "../../providers/SchemaProvider";
 
-class DashboardView extends React.Component {
+interface IState {
+  schemas: Schema[];
+  schema: Schema;
+}
+
+class DashboardView extends React.Component<{}, IState> {
   public constructor(props: any) {
     super(props);
+
+    this.state = {
+      schema: new Schema(),
+      schemas: []
+    };
+
+    this.selectSchema = this.selectSchema.bind(this);
+  }
+
+  public componentDidMount(): void {
+    SchemaProvider.getSchemas().then((res: ISchemasResponse) => {
+      if (res.error) {
+        console.log(res.error);
+      } else {
+        this.setState({schemas: res.schemas});
+      }
+    });
   }
 
   public render() {
+    const {schema, schemas} = this.state;
+    const schemaOptions = schemas.map((s: Schema) => {
+      return (<option key={s.id} value={s.id}>{s.name}</option>);
+    });
     return (
       <div>
         <Typography variant='h3'>Data Dashboard</Typography>
@@ -31,13 +59,12 @@ class DashboardView extends React.Component {
                       name: 'schema',
                       id: 'schema-native-helper',
                     }}
+                    onChange={this.selectSchema}
                   >
-                    <option aria-label="None" value="" />
-                    <option value={10}>Ten</option>
-                    <option value={20}>Twenty</option>
-                    <option value={30}>Thirty</option>
+                    <option aria-label='None' value=''/>
+                    {schemaOptions}
                   </NativeSelect>
-                  <FormHelperText>Some important helper text</FormHelperText>
+                  <FormHelperText>{schema.id > -1 ? schema.description : 'Please select a schema'}</FormHelperText>
                 </FormControl>
               </Grid>
 
@@ -85,6 +112,12 @@ class DashboardView extends React.Component {
         {/*<TablePagination/>*/}
       </div>
     );
+  }
+
+  private selectSchema(event: React.ChangeEvent<HTMLSelectElement>) {
+    const {schemas} = this.state;
+    const id: number = parseInt(event.target.value, 10);
+    this.setState({schema: schemas[id]});
   }
 }
 
