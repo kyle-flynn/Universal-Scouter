@@ -96,6 +96,31 @@ class Database {
     });
   }
 
+  public getEntry(entryId: string): Promise<object[]> {
+    return new Promise<object[]>((resolve, reject) => {
+      const id: string = entryId.split('-')[0];
+      this.db.all(`SELECT * FROM entry_${id} WHERE entry_id = '${entryId}';`, (err: any, rows: any[]) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(rows);
+        }
+      });
+    });
+  }
+
+  public getAllSchemaEntries(schemaId: string): Promise<object[]> {
+    return new Promise<object[]>((resolve, reject) => {
+      this.db.all(`SELECT * FROM entry_${schemaId};`, (err: any, rows: any[]) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(rows);
+        }
+      });
+    });
+  }
+
   public insertEntry(entry: SchemaEntry): Promise<any> {
     return new Promise<any>((resolve, reject) => {
       const id: string = entry.entryId.split('-')[0];
@@ -106,6 +131,54 @@ class Database {
         }
       }
       this.db.all(`INSERT INTO entry_${id} VALUES ('${entry.entryId}', '${entry.match}', ${values.toString()});`, (err: any, rows: any[]) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(rows);
+        }
+      });
+    });
+  }
+
+  public updateEntry(entry: SchemaEntry): Promise<any> {
+    return new Promise<any>((resolve, reject) => {
+      const id: string = entry.entryId.split('-')[0];
+      const values: string[] = [];
+      for (const property in entry.properties) {
+        if (entry.properties.hasOwnProperty(property)) {
+          let value: any = (entry.properties as any)[property];
+          if (typeof value === 'string') {
+            value = `'${value}'`;
+          }
+          values.push(`${property} = ${value}`);
+        }
+      }
+      this.db.all(`UPDATE entry_${id} SET ${values} WHERE entry_id = '${entry.entryId}';`, (err: any, rows: any[]) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(rows);
+        }
+      });
+    });
+  }
+
+  public deleteEntry(entryId: string): Promise<any> {
+    return new Promise<any>((resolve, reject) => {
+      const id: string = entryId.split('-')[0];
+      this.db.all(`DELETE FROM entry_${id} WHERE entry_id = '${entryId}';`, (err: any, rows: any[]) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(rows);
+        }
+      });
+    });
+  }
+
+  public deleteAllEntries(schemaId: string): Promise<any> {
+    return new Promise<any>((resolve, reject) => {
+      this.db.all(`DELETE FROM entry_${schemaId};`, (err: any, rows: any[]) => {
         if (err) {
           reject(err);
         } else {
