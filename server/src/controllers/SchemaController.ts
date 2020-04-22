@@ -26,16 +26,24 @@ router.get('/:schema_id', async (req: Request, res: Response) => {
 
 /* POST requests for schemas */
 router.post('/', async (req: Request, res: Response) => {
-  await Database.insertSchema(new Schema().fromJSON(req.body));
-  const values = Database.getAllSchemas();
+  const schema: Schema = new Schema().fromJSON(req.body);
+  await Database.insertSchema(schema);
+  const values = await Database.getAllSchemas();
+  await Database.createEntryTable(schema);
   res.send({response: values});
 });
 
 /* PUT requests for schemas */
 router.put('/:schema_id', async (req: Request, res: Response) => {
-  await Database.updateSchema(new Schema().fromJSON(req.body));
-  const values = Database.getAllSchemas();
-  res.send({response: values});
+  try {
+    const schema: Schema = new Schema().fromJSON(req.body);
+    await Database.updateSchema(schema);
+    const values = await Database.getAllSchemas();
+    /* SQLite does not support RENAME, DROP, or ADD functionality. So we don't deal with it here. */
+    res.send({response: values});
+  } catch {
+    res.status(400).send('Unable to convert identifier to number.');
+  }
 });
 
 /* DELETE requests for schemas */

@@ -1,3 +1,7 @@
+#home {
+  margin-top: calc(175px);
+}
+
 .container {
   height: 100%;
   width: 100%;
@@ -61,6 +65,17 @@ a, a:link, a:visited {
   width: 100%;
 }
 
+.inline-link,
+.inline-link:link,
+.inline-link:visited {
+  color: dodgerblue !important;
+}
+
+.inline-link:hover,
+.inline-link:active {
+  text-decoration: underline dotted !important;
+}
+
 @media (min-width: 600px) {
   #banner {
     top: 64px;
@@ -75,5 +90,9 @@ a, a:link, a:visited {
 
   #banner-subtitle {
     top: 96px;
+  }
+
+  #home {
+    margin-top: calc(250px);
   }
 }

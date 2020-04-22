@@ -116,7 +116,8 @@ class SchemaProvider {
 
   public async postEntry(entry: SchemaEntry): Promise<ISchemaEntriesResponse> {
     try {
-      const res: AxiosResponse = await this.axios.post("/entries", entry.toJSON());
+      const id: string = entry.entryId.split('-')[0];
+      const res: AxiosResponse = await this.axios.post(`/entries/${id}`, entry.toJSON());
       const entries: SchemaEntry[] = (res.data.response as any[]).map((e: any) => new SchemaEntry().fromJSON(e));
       return {entries, error: undefined};
     } catch (reason) {

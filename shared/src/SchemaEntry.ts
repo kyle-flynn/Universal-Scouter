@@ -1,6 +1,7 @@
 export default class SchemaEntry {
 
   public entryId: string;
+  public team: string;
   public match: string;
   public properties: object;
 
@@ -13,6 +14,7 @@ export default class SchemaEntry {
   public toJSON(): object {
     return {
       entry_id: this.entryId,
+      team: this.team,
       match: this.match,
       properties: this.properties
     };
@@ -21,6 +23,7 @@ export default class SchemaEntry {
   public fromJSON(json: any): SchemaEntry {
     const entry: SchemaEntry = new SchemaEntry();
     entry.entryId = json.entry_id;
+    entry.team = json.team;
     entry.match = json.match;
     entry.properties = json.properties;
     return entry;

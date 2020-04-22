@@ -41,7 +41,9 @@ class ScoutView extends React.Component<{}, IState> {
     };
 
     this.selectSchema = this.selectSchema.bind(this);
+    this.saveSchema = this.saveSchema.bind(this);
     this.resetSchema = this.resetSchema.bind(this);
+    this.updateTeam = this.updateTeam.bind(this);
     this.updateProperty = this.updateProperty.bind(this);
   }
 
@@ -56,7 +58,7 @@ class ScoutView extends React.Component<{}, IState> {
   }
 
   public render() {
-    const {schema, schemas} = this.state;
+    const {schema, schemas, entry} = this.state;
     const schemaOptions = schemas.map((s: Schema) => {
       return (<option key={s.id} value={s.id}>{s.name}</option>);
     });
@@ -92,14 +94,14 @@ class ScoutView extends React.Component<{}, IState> {
 
         {
           schema.id > -1 &&
-          this.renderSchema(schema)
+          this.renderSchema(schema, entry)
         }
 
       </div>
     );
   }
 
-  private renderSchema(schema: Schema) {
+  private renderSchema(schema: Schema, entry: SchemaEntry) {
     const propertyView = schema.properties.map((p: Property) => {
       return this.renderProperty(p);
     });
@@ -108,9 +110,11 @@ class ScoutView extends React.Component<{}, IState> {
         <Typography className='schema-header' variant='h5'>{schema.name}</Typography>
         <Divider/>
         <div className='schema-paper-content'>
-          {/*<Typography variant='body1'>Category 1</Typography>*/}
 
           <Grid container spacing={3}>
+            <Grid item xs={12} sm={6} md={3} lg={3}>
+              <TextField value={entry.team} onChange={this.updateTeam} fullWidth required label="Team"/>
+            </Grid>
             {propertyView}
           </Grid>
 
@@ -127,6 +131,7 @@ class ScoutView extends React.Component<{}, IState> {
                 variant="contained"
                 color="primary"
                 endIcon={<SaveIcon/>}
+                onClick={this.saveSchema}
               >
                 Submit
               </Button>
@@ -211,6 +216,16 @@ class ScoutView extends React.Component<{}, IState> {
     }
   }
 
+  private saveSchema(): void {
+    const {entry, schema} = this.state;
+    entry.entryId = `${schema.id}-0`;
+    SchemaProvider.postEntry(entry).then(() => {
+      // Set loading to false
+    }).catch((reason: any) => {
+      console.log(reason);
+    });
+  }
+
   private resetSchema(): void {
     const {schema, entry} = this.state;
     for (const property of schema.properties) {
@@ -258,6 +273,12 @@ class ScoutView extends React.Component<{}, IState> {
       }
     }
     this.setState({schema, entry});
+  }
+
+  private updateTeam(event: React.ChangeEvent<HTMLInputElement>) {
+    const {entry} = this.state;
+    entry.team = event.target.value;
+    this.forceUpdate();
   }
 
   private updateProperty(event: React.ChangeEvent) {

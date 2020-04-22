@@ -8,12 +8,13 @@ import InputLabel from "@material-ui/core/InputLabel";
 import NativeSelect from "@material-ui/core/NativeSelect";
 import FormHelperText from "@material-ui/core/FormHelperText";
 import TablePagination from '../../components/TablePagination';
-import {Schema} from 'universal-scouter-shared';
-import SchemaProvider, {ISchemasResponse} from "../../providers/SchemaProvider";
+import {Property, Schema, SchemaEntry} from 'universal-scouter-shared';
+import SchemaProvider, {ISchemaEntriesResponse, ISchemasResponse} from '../../providers/SchemaProvider';
 
 interface IState {
   schemas: Schema[];
   schema: Schema;
+  entries: SchemaEntry[];
 }
 
 class DashboardView extends React.Component<{}, IState> {
@@ -22,10 +23,12 @@ class DashboardView extends React.Component<{}, IState> {
 
     this.state = {
       schema: new Schema(),
-      schemas: []
+      schemas: [],
+      entries: []
     };
 
     this.selectSchema = this.selectSchema.bind(this);
+    this.removeEntries = this.removeEntries.bind(this);
   }
 
   public componentDidMount(): void {
@@ -39,9 +42,12 @@ class DashboardView extends React.Component<{}, IState> {
   }
 
   public render() {
-    const {schema, schemas} = this.state;
+    const {schema, schemas, entries} = this.state;
     const schemaOptions = schemas.map((s: Schema) => {
       return (<option key={s.id} value={s.id}>{s.name}</option>);
+    });
+    const headerCells: any[] = schema.properties.map((p: Property) => {
+      return {disabledPadding: true, id: p.getJSONName(), label: p.name, numeric: p.type === 'number'};
     });
     return (
       <div>
@@ -67,49 +73,26 @@ class DashboardView extends React.Component<{}, IState> {
                   <FormHelperText>{schema.id > -1 ? schema.description : 'Please select a schema'}</FormHelperText>
                 </FormControl>
               </Grid>
-
-              <Grid item xs={12} sm={6} md={4} lg={3}>
-                <FormControl fullWidth>
-                  <InputLabel htmlFor="schema-native-helper">Group By</InputLabel>
-                  <NativeSelect
-                    inputProps={{
-                      name: 'schema',
-                      id: 'schema-native-helper',
-                    }}
-                  >
-                    <option aria-label="None" value="" />
-                    <option value={10}>Ten</option>
-                    <option value={20}>Twenty</option>
-                    <option value={30}>Thirty</option>
-                  </NativeSelect>
-                  <FormHelperText>Some important helper text</FormHelperText>
-                </FormControl>
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={4} lg={3}>
-                <FormControl fullWidth>
-                  <InputLabel htmlFor="schema-native-helper">Filter</InputLabel>
-                  <NativeSelect
-                    inputProps={{
-                      name: 'schema',
-                      id: 'schema-native-helper',
-                    }}
-                  >
-                    <option aria-label="None" value="" />
-                    <option value={10}>Ten</option>
-                    <option value={20}>Twenty</option>
-                    <option value={30}>Thirty</option>
-                  </NativeSelect>
-                  <FormHelperText>Some important helper text</FormHelperText>
-                </FormControl>
-              </Grid>
             </Grid>
           </div>
         </Paper>
 
         <div className='space'/>
 
-        {/*<TablePagination/>*/}
+        {
+          entries.length > 0 &&
+          <TablePagination
+            onDelete={this.removeEntries}
+            title={`${schema.name} Entries`}
+            headCells={[
+              {disablePadding: true, id: 'entryId', label: 'ID', numeric: false},
+              {disablePadding: true, id: 'team', label: 'Team', numeric: false},
+              {disablePadding: true, id: 'match', label: 'Match', numeric: false},
+            ].concat(headerCells)}
+            data={entries}
+            identifier={'entryId'}
+          />
+        }
       </div>
     );
   }
@@ -118,6 +101,24 @@ class DashboardView extends React.Component<{}, IState> {
     const {schemas} = this.state;
     const id: number = parseInt(event.target.value, 10);
     this.setState({schema: schemas[id]});
+    SchemaProvider.getAllEntries(`${id}`).then((res: ISchemaEntriesResponse) => {
+      this.setState({entries: res.entries});
+    }).catch((reason: any) => {
+      console.log(reason);
+    });
+  }
+
+  private removeEntries(selected: any[]) {
+    for (const entry of selected) {
+      SchemaProvider.deleteEntry(entry).then((res: ISchemaEntriesResponse) => {
+        if (res.error) {
+          console.log(res.error);
+        } else {
+          console.log(res.entries);
+          this.setState({entries: res.entries})
+        }
+      });
+    }
   }
 }
 

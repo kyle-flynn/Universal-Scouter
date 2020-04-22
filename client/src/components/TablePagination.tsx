@@ -18,53 +18,29 @@ import Tooltip from '@material-ui/core/Tooltip';
 import DeleteIcon from '@material-ui/icons/Delete';
 import FilterListIcon from '@material-ui/icons/FilterList';
 
-// interface Data {
-//   calories: number;
-//   carbs: number;
-//   fat: number;
-//   name: string;
-//   protein: number;
-// }
-//
-// function createData(
-//   name: string,
-//   calories: number,
-//   fat: number,
-//   carbs: number,
-//   protein: number,
-// ): Data {
-//   return { name, calories, fat, carbs, protein };
-// }
-
-// const rows = [
-//   createData('Cupcake', 305, 3.7, 67, 4.3),
-//   createData('Donut', 452, 25.0, 51, 4.9),
-//   createData('Eclair', 262, 16.0, 24, 6.0),
-//   createData('Frozen yoghurt', 159, 6.0, 24, 4.0),
-//   createData('Gingerbread', 356, 16.0, 49, 3.9),
-//   createData('Honeycomb', 408, 3.2, 87, 6.5),
-//   createData('Ice cream sandwich', 237, 9.0, 37, 4.3),
-//   createData('Jelly Bean', 375, 0.0, 94, 0.0),
-//   createData('KitKat', 518, 26.0, 65, 7.0),
-//   createData('Lollipop', 392, 0.2, 98, 0.0),
-//   createData('Marshmallow', 318, 0, 81, 2.0),
-//   createData('Nougat', 360, 19.0, 9, 37.0),
-//   createData('Oreo', 437, 18.0, 63, 4.0),
-// ];
-
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
-  if (b[orderBy] < a[orderBy]) {
-    return -1;
+  try {
+    let valA = (a as any)[orderBy];
+    let valB = (b as any)[orderBy];
+    if (typeof (a as any)[orderBy] === 'undefined' || typeof (b as any)[orderBy] === 'undefined') {
+      valA = (a as any).properties[orderBy];
+      valB = (b as any).properties[orderBy];
+    }
+    if (valB < valA) {
+      return -1;
+    }
+    if (valB > valA) {
+      return 1;
+    }
+    return 0;
+  } catch {
+    return 0;
   }
-  if (b[orderBy] > a[orderBy]) {
-    return 1;
-  }
-  return 0;
 }
 
 type Order = 'asc' | 'desc';
 
-function getComparator<Key extends keyof any>(
+function getEntryComparator<Key extends keyof any>(
   order: Order,
   orderBy: Key,
 ): (a: { [key in Key]: number | string }, b: { [key in Key]: number | string }) => number {
@@ -77,6 +53,7 @@ function stableSort<T>(array: T[], comparator: (a: T, b: T) => number) {
   const stabilizedThis = array.map((el, index) => [el, index] as [T, number]);
   stabilizedThis.sort((a, b) => {
     const order = comparator(a[0], b[0]);
+    // console.log(order, a[0], b[0]);
     if (order !== 0) return order;
     return a[1] - b[1];
   });
@@ -89,14 +66,6 @@ interface HeadCell {
   label: string;
   numeric: boolean;
 }
-
-// const headCells: HeadCell[] = [
-//   { id: 'name', numeric: false, disablePadding: true, label: 'Dessert (100g serving)' },
-//   { id: 'calories', numeric: true, disablePadding: false, label: 'Calories' },
-//   { id: 'fat', numeric: true, disablePadding: false, label: 'Fat (g)' },
-//   { id: 'carbs', numeric: true, disablePadding: false, label: 'Carbs (g)' },
-//   { id: 'protein', numeric: true, disablePadding: false, label: 'Protein (g)' },
-// ];
 
 interface EnhancedTableProps {
   classes: ReturnType<typeof useStyles>;
@@ -129,7 +98,7 @@ function EnhancedTableHead(props: EnhancedTableProps) {
         {headCells.map((headCell) => (
           <TableCell
             key={headCell.id}
-            align={headCell.numeric ? 'right' : 'left'}
+            align={'left'}
             padding={headCell.disablePadding ? 'none' : 'default'}
             sortDirection={orderBy === headCell.id ? order : false}
           >
@@ -176,11 +145,13 @@ const useToolbarStyles = makeStyles((theme: Theme) =>
 
 interface EnhancedTableToolbarProps {
   numSelected: number;
+  title: string;
+  onDelete: (...args: any) => void;
 }
 
 const EnhancedTableToolbar = (props: EnhancedTableToolbarProps) => {
   const classes = useToolbarStyles();
-  const { numSelected } = props;
+  const { numSelected, title, onDelete} = props;
 
   return (
     <Toolbar
@@ -194,12 +165,12 @@ const EnhancedTableToolbar = (props: EnhancedTableToolbarProps) => {
         </Typography>
       ) : (
         <Typography className={classes.title} variant="h6" id="tableTitle" component="div">
-          Nutrition
+          {title}
         </Typography>
       )}
       {numSelected > 0 ? (
         <Tooltip title="Delete">
-          <IconButton aria-label="delete">
+          <IconButton aria-label="delete" onClick={onDelete}>
             <DeleteIcon />
           </IconButton>
         </Tooltip>
@@ -240,14 +211,16 @@ const useStyles = makeStyles((theme: Theme) =>
   }),
 );
 
-interface EnhancedTableProps {
+interface TablePaginationProps {
   headCells: HeadCell[];
   data: any[];
   identifier: string;
+  title: string;
+  onDelete: (elements: any[]) => void;
 }
 
-export default function EnhancedTable(props: EnhancedTableProps) {
-  const { headCells, data, identifier } = props;
+export default function EnhancedTable(props: TablePaginationProps) {
+  const { headCells, data, identifier, title, onDelete } = props;
   const classes = useStyles();
   const [order, setOrder] = React.useState<Order>('asc');
   const [orderBy, setOrderBy] = React.useState<string>('');
@@ -299,14 +272,18 @@ export default function EnhancedTable(props: EnhancedTableProps) {
     setPage(0);
   };
 
+  const handleOnDelete = (selected: any[]) => {
+    setSelected([]);
+    onDelete(selected);
+  };
+
   const isSelected = (name: string) => selected.indexOf(name) !== -1;
 
   const emptyRows = rowsPerPage - Math.min(rowsPerPage, data.length - page * rowsPerPage);
-
   return (
     <div className={classes.root}>
       <Paper className={classes.paper}>
-        <EnhancedTableToolbar numSelected={selected.length} />
+        <EnhancedTableToolbar onDelete={() => handleOnDelete(selected)} numSelected={selected.length} title={title}/>
         <TableContainer>
           <Table
             className={classes.table}
@@ -323,11 +300,9 @@ export default function EnhancedTable(props: EnhancedTableProps) {
               onRequestSort={handleRequestSort}
               rowCount={data.length}
               headCells={headCells}
-              data={data}
-              identifier={identifier}
             />
             <TableBody>
-              {stableSort(data, getComparator(order, orderBy))
+              {stableSort(data, getEntryComparator(order, orderBy))
                 .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                 .map((row: any, index: number) => {
                   const isItemSelected = isSelected(row[identifier]);
@@ -340,7 +315,7 @@ export default function EnhancedTable(props: EnhancedTableProps) {
                       role="checkbox"
                       aria-checked={isItemSelected}
                       tabIndex={-1}
-                      key={row.name}
+                      key={`row-${index}`}
                       selected={isItemSelected}
                     >
                       <TableCell padding="checkbox">
@@ -350,12 +325,15 @@ export default function EnhancedTable(props: EnhancedTableProps) {
                         />
                       </TableCell>
                       <TableCell component="th" id={labelId} scope="row" padding="none">
-                        {row.name}
+                        {row.entryId}
                       </TableCell>
-                      <TableCell align="right">{row.calories}</TableCell>
-                      <TableCell align="right">{row.fat}</TableCell>
-                      <TableCell align="right">{row.carbs}</TableCell>
-                      <TableCell align="right">{row.protein}</TableCell>
+                      <TableCell padding='none'>{row.team}</TableCell>
+                      <TableCell align="left">{row.match}</TableCell>
+                      {headCells
+                        .filter((cell: HeadCell) => cell.id !== 'entryId' && cell.id !== 'match' && cell.id !== 'team')
+                        .map((cell: HeadCell) => {
+                        return <TableCell key={`${cell.id}-${index}`} align="left">{row.properties ? row.properties[cell.id] : ''}</TableCell>;
+                      })}
                     </TableRow>
                   );
                 })}

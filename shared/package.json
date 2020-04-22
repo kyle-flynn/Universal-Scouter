@@ -1,6 +1,6 @@
 {
   "name": "universal-scouter-shared",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "Shared codebase for the universal-scouter",
   "main": "build/index.js",
   "types": "build/index.d.ts",

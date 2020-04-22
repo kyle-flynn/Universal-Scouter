@@ -86,7 +86,7 @@ class Database {
         data += `${property.getJSONName()} ${this.getPossibleDataTypes(property.type)},`;
       }
       data = data.substring(0, data.length - 1);
-      this.db.all(` CREATE TABLE entry_${schema.id} (entry_id VARCHAR PRIMARY KEY NOT NULL, match VARCHAR NOT NULL, ${data});`, (err: any, rows: any[]) => {
+      this.db.all(`CREATE TABLE entry_${schema.id} (entry_id VARCHAR PRIMARY KEY NOT NULL, match VARCHAR NOT NULL, team NOT NULL, ${data});`, (err: any, rows: any[]) => {
         if (err) {
           reject(err);
         } else {
@@ -127,10 +127,15 @@ class Database {
       const values: string[] = [];
       for (const property in entry.properties) {
         if (entry.properties.hasOwnProperty(property)) {
-          values.push((entry.properties as any)[property]);
+          const value = (entry.properties as any)[property];
+          if (typeof value === 'string') {
+            values.push(`'${value}'`);
+          } else {
+            values.push(value);
+          }
         }
       }
-      this.db.all(`INSERT INTO entry_${id} VALUES ('${entry.entryId}', '${entry.match}', ${values.toString()});`, (err: any, rows: any[]) => {
+      this.db.all(`INSERT INTO entry_${id} VALUES ('${entry.entryId}', '${entry.match}', '${entry.team}', ${values.toString()});`, (err: any, rows: any[]) => {
         if (err) {
           reject(err);
         } else {
