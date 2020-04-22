@@ -1,10 +1,10 @@
-import {Database as SQLiteDatabase} from 'sqlite3';
+import * as MySQL from 'mysql';
 import * as path from 'path';
 import {Property, Schema, SchemaEntry} from 'universal-scouter-shared';
 
 class Database {
   private static instance: Database;
-  private db: SQLiteDatabase;
+  private pool: MySQL.Pool;
 
   public static getInstance(): Database {
     if (typeof Database.instance === 'undefined') {
@@ -14,12 +14,12 @@ class Database {
   }
 
   private constructor() {
-    this.db = new SQLiteDatabase(path.join(__dirname, '../data/schemas.db'));
+    this.pool = MySQL.createPool({});
   }
 
   public getAllSchemas(): Promise<object[]> {
     return new Promise<object[]>((resolve, reject) => {
-      this.db.all(`SELECT * FROM 'schemas';`, (err: any, rows: any[]) => {
+      this.pool.query(`SELECT * FROM \`schemas\`;`, (err: any, rows: any[]) => {
         if (err) {
           reject(err);
         } else {
@@ -31,7 +31,7 @@ class Database {
 
   public getSchema(id: number): Promise<object[]> {
     return new Promise<object[]>((resolve, reject) => {
-      this.db.all(`SELECT * FROM 'schemas' WHERE id = ${id};`, (err: any, rows: any[]) => {
+      this.pool.query(`SELECT * FROM \`schemas\` WHERE id = ${id};`, (err: any, rows: any[]) => {
         if (err) {
           reject(err);
         } else {
@@ -44,7 +44,7 @@ class Database {
   public insertSchema(schema: Schema): Promise<object[]> {
     return new Promise<object[]>((resolve, reject) => {
       const propertyJSON: any = schema.properties.map((p: Property) => p.toJSON());
-      this.db.all(`INSERT INTO 'schemas' VALUES (${schema.id}, '${schema.name}', ${schema.year}, '${schema.description}', '${JSON.stringify(propertyJSON)}', '${schema.competition}');`, (err: any, rows: any[]) => {
+      this.pool.query(`INSERT INTO \`schemas\` VALUES (${schema.id}, '${schema.name}', ${schema.year}, '${schema.description}', '${JSON.stringify(propertyJSON)}', '${schema.competition}');`, (err: any, rows: any[]) => {
         if (err) {
           reject(err);
         } else {
@@ -57,7 +57,7 @@ class Database {
   public updateSchema(schema: Schema): Promise<object[]> {
     return new Promise<object[]>((resolve, reject) => {
       const propertyJSON: any = schema.properties.map((p: Property) => p.toJSON());
-      this.db.all(`UPDATE 'schemas' SET name = '${schema.name}', year = ${schema.year}, description = '${schema.description}', properties = '${JSON.stringify(propertyJSON)}', competition = '${schema.competition}' WHERE id = ${schema.id};`, (err: any, rows: any[]) => {
+      this.pool.query(`UPDATE \`schemas\` SET name = '${schema.name}', year = ${schema.year}, description = '${schema.description}', properties = '${JSON.stringify(propertyJSON)}', competition = '${schema.competition}' WHERE id = ${schema.id};`, (err: any, rows: any[]) => {
         if (err) {
           reject(err);
         } else {
@@ -69,7 +69,7 @@ class Database {
 
   public removeSchema(id: number): Promise<object[]> {
     return new Promise<object[]>((resolve, reject) => {
-      this.db.all(`DELETE FROM 'schemas' WHERE id = ${id};`, (err: any, rows: any[]) => {
+      this.pool.query(`DELETE FROM \`schemas\` WHERE id = ${id};`, (err: any, rows: any[]) => {
         if (err) {
           reject(err);
         } else {
@@ -81,7 +81,7 @@ class Database {
 
   public dropEntryTable(id: number): Promise<any> {
     return new Promise<object[]>((resolve, reject) => {
-      this.db.all(`DROP TABLE 'entry_${id}';`, (err: any, rows: any[]) => {
+      this.pool.query(`DROP TABLE \`entry_${id}\`;`, (err: any, rows: any[]) => {
         if (err) {
           reject(err);
         } else {
@@ -98,7 +98,7 @@ class Database {
         data += `${property.getJSONName()} ${this.getPossibleDataTypes(property.type)},`;
       }
       data = data.substring(0, data.length - 1);
-      this.db.all(`CREATE TABLE entry_${schema.id} (entry_id VARCHAR PRIMARY KEY NOT NULL, match VARCHAR NOT NULL, team NOT NULL, ${data});`, (err: any, rows: any[]) => {
+      this.pool.query(`CREATE TABLE \`entry_${schema.id}\` (entry_id VARCHAR(255) PRIMARY KEY NOT NULL, \`match\` VARCHAR(255) NOT NULL, team VARCHAR(255) NOT NULL, ${data});`, (err: any, rows: any[]) => {
         if (err) {
           reject(err);
         } else {
@@ -111,7 +111,7 @@ class Database {
   public getEntry(entryId: string): Promise<object[]> {
     return new Promise<object[]>((resolve, reject) => {
       const id: string = entryId.split('-')[0];
-      this.db.all(`SELECT * FROM entry_${id} WHERE entry_id = '${entryId}';`, (err: any, rows: any[]) => {
+      this.pool.query(`SELECT * FROM \`entry_${id}\` WHERE entry_id = '${entryId}';`, (err: any, rows: any[]) => {
         if (err) {
           reject(err);
         } else {
@@ -123,7 +123,7 @@ class Database {
 
   public getAllSchemaEntries(schemaId: string): Promise<object[]> {
     return new Promise<object[]>((resolve, reject) => {
-      this.db.all(`SELECT * FROM entry_${schemaId};`, (err: any, rows: any[]) => {
+      this.pool.query(`SELECT * FROM \`entry_${schemaId}\`;`, (err: any, rows: any[]) => {
         if (err) {
           reject(err);
         } else {
@@ -147,7 +147,7 @@ class Database {
           }
         }
       }
-      this.db.all(`INSERT INTO entry_${id} VALUES ('${entry.entryId}', '${entry.match}', '${entry.team}', ${values.toString()});`, (err: any, rows: any[]) => {
+      this.pool.query(`INSERT INTO \`entry_${id}\` VALUES ('${entry.entryId}', '${entry.match}', '${entry.team}', ${values.toString()});`, (err: any, rows: any[]) => {
         if (err) {
           reject(err);
         } else {
@@ -170,7 +170,7 @@ class Database {
           values.push(`${property} = ${value}`);
         }
       }
-      this.db.all(`UPDATE entry_${id} SET ${values} WHERE entry_id = '${entry.entryId}';`, (err: any, rows: any[]) => {
+      this.pool.query(`UPDATE \`entry_${id}\` SET ${values} WHERE entry_id = '${entry.entryId}';`, (err: any, rows: any[]) => {
         if (err) {
           reject(err);
         } else {
@@ -183,7 +183,7 @@ class Database {
   public deleteEntry(entryId: string): Promise<any> {
     return new Promise<any>((resolve, reject) => {
       const id: string = entryId.split('-')[0];
-      this.db.all(`DELETE FROM entry_${id} WHERE entry_id = '${entryId}';`, (err: any, rows: any[]) => {
+      this.pool.query(`DELETE FROM \`entry_${id}\` WHERE entry_id = '${entryId}';`, (err: any, rows: any[]) => {
         if (err) {
           reject(err);
         } else {
@@ -195,7 +195,7 @@ class Database {
 
   public deleteAllEntries(schemaId: string): Promise<any> {
     return new Promise<any>((resolve, reject) => {
-      this.db.all(`DELETE FROM entry_${schemaId};`, (err: any, rows: any[]) => {
+      this.pool.query(`DELETE FROM \`entry_${schemaId}\`;`, (err: any, rows: any[]) => {
         if (err) {
           reject(err);
         } else {
@@ -207,7 +207,7 @@ class Database {
 
   public getPossibleDataTypes(type: string): string {
     if (type === 'string' || type === 'dropdown') {
-      return 'VARCHAR';
+      return 'VARCHAR(255)';
     } else if (type === 'number') {
       return 'INT';
     } else if (type === 'boolean') {
