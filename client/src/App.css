@@ -76,6 +76,14 @@ a, a:link, a:visited {
   text-decoration: underline dotted !important;
 }
 
+.backdrop {
+  z-index: 999 !important;
+}
+
+nav {
+  z-index: 998 !important;
+}
+
 @media (min-width: 600px) {
   #banner {
     top: 64px;

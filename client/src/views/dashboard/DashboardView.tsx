@@ -10,11 +10,17 @@ import FormHelperText from "@material-ui/core/FormHelperText";
 import TablePagination from '../../components/TablePagination';
 import {Property, Schema, SchemaEntry} from 'universal-scouter-shared';
 import SchemaProvider, {ISchemaEntriesResponse, ISchemasResponse} from '../../providers/SchemaProvider';
+import Backdrop from '@material-ui/core/Backdrop';
+import CircularProgress from '@material-ui/core/CircularProgress';
+import AlertDialog from '../../components/AlertDialog';
 
 interface IState {
   schemas: Schema[];
   schema: Schema;
   entries: SchemaEntry[];
+  alertDialogOpen: boolean;
+  alertMessage: string;
+  loading: boolean;
 }
 
 class DashboardView extends React.Component<{}, IState> {
@@ -24,11 +30,16 @@ class DashboardView extends React.Component<{}, IState> {
     this.state = {
       schema: new Schema(),
       schemas: [],
-      entries: []
+      entries: [],
+      alertDialogOpen: false,
+      alertMessage: '',
+      loading: false
     };
 
     this.selectSchema = this.selectSchema.bind(this);
     this.removeEntries = this.removeEntries.bind(this);
+    this.openAlertDialog = this.openAlertDialog.bind(this);
+    this.closeAlertDialog = this.closeAlertDialog.bind(this);
   }
 
   public componentDidMount(): void {
@@ -42,7 +53,7 @@ class DashboardView extends React.Component<{}, IState> {
   }
 
   public render() {
-    const {schema, schemas, entries} = this.state;
+    const {schema, schemas, entries, loading, alertDialogOpen, alertMessage} = this.state;
     const schemaOptions = schemas.map((s: Schema) => {
       return (<option key={s.id} value={s.id}>{s.name}</option>);
     });
@@ -51,6 +62,10 @@ class DashboardView extends React.Component<{}, IState> {
     });
     return (
       <div>
+        <Backdrop open={loading} className='backdrop'>
+          <CircularProgress color="inherit" />
+        </Backdrop>
+        <AlertDialog open={alertDialogOpen} message={alertMessage} onClose={this.closeAlertDialog}/>
         <Typography variant='h3'>Data Dashboard</Typography>
         <Paper className='schema-paper'>
           <Typography className='schema-header' variant='h5'>Options</Typography>
@@ -97,18 +112,24 @@ class DashboardView extends React.Component<{}, IState> {
     );
   }
 
-  private selectSchema(event: React.ChangeEvent<HTMLSelectElement>) {
+  private async selectSchema(event: React.ChangeEvent<HTMLSelectElement>) {
     const {schemas} = this.state;
+    this.setState({loading: true});
     const id: number = parseInt(event.target.value, 10);
     this.setState({schema: schemas[id]});
-    SchemaProvider.getAllEntries(`${id}`).then((res: ISchemaEntriesResponse) => {
-      this.setState({entries: res.entries});
-    }).catch((reason: any) => {
-      console.log(reason);
-    });
+    const values = await SchemaProvider.getAllEntries(`${id}`);
+    if (values.error) {
+      console.log(values.error);
+      this.setState({alertMessage: values.error.message});
+      this.openAlertDialog();
+    } else {
+      this.setState({entries: values.entries});
+    }
+    this.setState({loading: false});
   }
 
   private removeEntries(selected: any[]) {
+    this.setState({loading: true});
     for (const entry of selected) {
       SchemaProvider.deleteEntry(entry).then((res: ISchemaEntriesResponse) => {
         if (res.error) {
@@ -119,6 +140,15 @@ class DashboardView extends React.Component<{}, IState> {
         }
       });
     }
+    this.setState({loading: false});
+  }
+
+  private openAlertDialog(): void {
+    this.setState({alertDialogOpen: true});
+  }
+
+  private closeAlertDialog(): void {
+    this.setState({alertDialogOpen: false, alertMessage: ''});
   }
 }
 

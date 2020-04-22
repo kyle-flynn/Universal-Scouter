@@ -23,11 +23,17 @@ import SchemaProvider, {ISchemasResponse} from "../../providers/SchemaProvider";
 import TextField from "@material-ui/core/TextField";
 import FormControlLabel from '@material-ui/core/FormControlLabel';
 import Checkbox from '@material-ui/core/Checkbox';
+import Backdrop from '@material-ui/core/Backdrop';
+import CircularProgress from '@material-ui/core/CircularProgress';
+import AlertDialog from '../../components/AlertDialog';
 
 interface IState {
   schemas: Schema[];
   schema: Schema;
   entry: SchemaEntry;
+  loading: boolean;
+  alertDialogOpen: boolean;
+  alertMessage: string;
 }
 
 class ScoutView extends React.Component<{}, IState> {
@@ -37,14 +43,20 @@ class ScoutView extends React.Component<{}, IState> {
     this.state = {
       schemas: [],
       schema: new Schema(),
-      entry: new SchemaEntry()
+      entry: new SchemaEntry(),
+      loading: false,
+      alertDialogOpen: false,
+      alertMessage: ''
     };
 
     this.selectSchema = this.selectSchema.bind(this);
     this.saveSchema = this.saveSchema.bind(this);
     this.resetSchema = this.resetSchema.bind(this);
     this.updateTeam = this.updateTeam.bind(this);
+    this.updateMatch = this.updateMatch.bind(this);
     this.updateProperty = this.updateProperty.bind(this);
+    this.openAlertDialog = this.openAlertDialog.bind(this);
+    this.closeAlertDialog = this.closeAlertDialog.bind(this);
   }
 
   public componentDidMount(): void {
@@ -58,12 +70,16 @@ class ScoutView extends React.Component<{}, IState> {
   }
 
   public render() {
-    const {schema, schemas, entry} = this.state;
+    const {schema, schemas, entry, loading, alertDialogOpen, alertMessage} = this.state;
     const schemaOptions = schemas.map((s: Schema) => {
       return (<option key={s.id} value={s.id}>{s.name}</option>);
     });
     return (
       <div>
+        <Backdrop open={loading} className='backdrop'>
+          <CircularProgress color="inherit" />
+        </Backdrop>
+        <AlertDialog open={alertDialogOpen} message={alertMessage} onClose={this.closeAlertDialog}/>
         <Typography variant='h3'>Scouting Data</Typography>
         <Paper className='schema-paper'>
           <Typography className='schema-header' variant='h5'>Schemas</Typography>
@@ -113,7 +129,10 @@ class ScoutView extends React.Component<{}, IState> {
 
           <Grid container spacing={3}>
             <Grid item xs={12} sm={6} md={3} lg={3}>
-              <TextField value={entry.team} onChange={this.updateTeam} fullWidth required label="Team"/>
+              <TextField error={!entry.team || entry.team.length <= 0} value={entry.team} onChange={this.updateTeam} fullWidth required label="Team"/>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3} lg={3}>
+              <TextField error={!entry.match || entry.match.length <= 0} value={entry.match} onChange={this.updateMatch} fullWidth required label="Match"/>
             </Grid>
             {propertyView}
           </Grid>
@@ -161,14 +180,14 @@ class ScoutView extends React.Component<{}, IState> {
         const stringProp: StringProperty = property as StringProperty;
         return (
           <Grid key={`${property.name}-${property.type}`} item xs={12} sm={6} md={3} lg={3}>
-            <TextField name={stringProp.getJSONName()} value={value} fullWidth required label={stringProp.name} onChange={this.updateProperty}/>
+            <TextField error={!value || value.length <= 0} name={stringProp.getJSONName()} value={value} fullWidth required label={stringProp.name} onChange={this.updateProperty}/>
           </Grid>
         );
       case 'number':
         const numberProp: NumberProperty = property as NumberProperty;
         return (
           <Grid key={`${property.name}-${property.type}`} item xs={12} sm={6} md={3} lg={3}>
-            <TextField name={numberProp.getJSONName()} value={value} fullWidth required label={numberProp.name} onChange={this.updateProperty}/>
+            <TextField error={!value || value > numberProp.max || value < numberProp.min} name={numberProp.getJSONName()} inputProps={{type: 'number'}} value={value} fullWidth required label={numberProp.name} onChange={this.updateProperty}/>
           </Grid>
         );
       case 'boolean':
@@ -185,7 +204,7 @@ class ScoutView extends React.Component<{}, IState> {
         const dropdownProp: DropdownProperty = property as DropdownProperty;
         return (
           <Grid key={`${property.name}-${property.type}`} item xs={12} sm={6} md={3} lg={3}>
-            <FormControl fullWidth>
+            <FormControl error={!value || value.length <= 0} fullWidth>
               <InputLabel id="property-dropdown-label">{dropdownProp.name}</InputLabel>
               <NativeSelect
                 value={value}
@@ -210,20 +229,22 @@ class ScoutView extends React.Component<{}, IState> {
         const defaultProp: StringProperty = property as StringProperty;
         return (
           <Grid key={`${property.name}-${property.type}`} item xs={12} sm={6} md={3} lg={3}>
-            <TextField name={defaultProp.getJSONName()} value={value} fullWidth required label={defaultProp.name} onChange={this.updateProperty}/>
+            <TextField error={!value || value.length <= 0} name={defaultProp.getJSONName()} value={value} fullWidth required label={defaultProp.name} onChange={this.updateProperty}/>
           </Grid>
         );
     }
   }
 
-  private saveSchema(): void {
+  private async saveSchema() {
     const {entry, schema} = this.state;
+    this.setState({loading: true});
     entry.entryId = `${schema.id}-0`;
-    SchemaProvider.postEntry(entry).then(() => {
-      // Set loading to false
-    }).catch((reason: any) => {
-      console.log(reason);
-    });
+    const values = await SchemaProvider.postEntry(entry);
+    if (values.error) {
+      this.setState({alertMessage: values.error.message});
+      this.openAlertDialog();
+    }
+    this.setState({loading: false});
   }
 
   private resetSchema(): void {
@@ -281,6 +302,12 @@ class ScoutView extends React.Component<{}, IState> {
     this.forceUpdate();
   }
 
+  private updateMatch(event: React.ChangeEvent<HTMLInputElement>) {
+    const {entry} = this.state;
+    entry.match = event.target.value;
+    this.forceUpdate();
+  }
+
   private updateProperty(event: React.ChangeEvent) {
     const {entry} = this.state;
     (entry.properties as any)[(event.target as any).name] = (event.target as any).type !== 'checkbox' ? (event.target as any).value : (event.target as any).checked;
@@ -288,16 +315,31 @@ class ScoutView extends React.Component<{}, IState> {
   }
 
   private canSubmit(): boolean {
-    const {entry} = this.state;
-    for (const property in entry.properties) {
-      if (entry.properties.hasOwnProperty(property)) {
-        const value = (entry.properties as any)[property];
-        if (typeof value === 'undefined' || (typeof value === 'string' && value.length <= 0)) {
+    const {entry, schema} = this.state;
+    for (const property of schema.properties) {
+      let value = (entry.properties as any)[property.getJSONName()];
+      if (typeof value === 'undefined' || (typeof value === 'string' && value.length <= 0)) {
+        return false;
+      }
+      if (property.type === 'number') {
+        value = parseInt(value, 10);
+        const numProp: NumberProperty = property as NumberProperty;
+        if (value > numProp.max || value < numProp.min) {
           return false;
         }
       }
     }
+    if (!entry.team || entry.team.length <= 0) return false;
+    if (!entry.match || entry.match.length <= 0) return false;
     return true;
+  }
+
+  private openAlertDialog(): void {
+    this.setState({alertDialogOpen: true});
+  }
+
+  private closeAlertDialog(): void {
+    this.setState({alertDialogOpen: false, alertMessage: ''});
   }
 }
 

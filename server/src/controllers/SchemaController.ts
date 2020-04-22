@@ -41,8 +41,8 @@ router.put('/:schema_id', async (req: Request, res: Response) => {
     const values = await Database.getAllSchemas();
     /* SQLite does not support RENAME, DROP, or ADD functionality. So we don't deal with it here. */
     res.send({response: values});
-  } catch {
-    res.status(400).send('Unable to convert identifier to number.');
+  } catch (e) {
+    res.status(400).send(e.toString());
   }
 });
 
@@ -51,6 +51,7 @@ router.delete('/:schema_id', async (req: Request, res: Response) => {
   try {
     const id: number = parseInt(req.params.schema_id, 10);
     await Database.removeSchema(id);
+    await Database.dropEntryTable(id);
     const newValues = await Database.getAllSchemas();
     res.send({response: newValues});
   } catch {

@@ -1,6 +1,8 @@
 import * as React from 'react';
 import AddIcon from '@material-ui/icons/Add';
+import Backdrop from '@material-ui/core/Backdrop';
 import Button from '@material-ui/core/Button';
+import CircularProgress from '@material-ui/core/CircularProgress';
 import DeleteIcon from '@material-ui/icons/Delete';
 import Divider from '@material-ui/core/Divider';
 import FormControl from '@material-ui/core/FormControl';
@@ -29,6 +31,7 @@ import {
 import SchemaProvider, {ISchemasResponse} from '../../providers/SchemaProvider';
 import AddPropertyOptionDialog from "../../components/AddPropertyOptionDialog";
 import RemoveDialog from "../../components/RemoveDialog";
+import AlertDialog from '../../components/AlertDialog';
 
 interface IState {
   editMode: boolean;
@@ -38,6 +41,9 @@ interface IState {
   propertyIndex: number;
   optionDialogOpen: boolean;
   removeDialogOpen: boolean;
+  alertDialogOpen: boolean;
+  alertMessage: string;
+  loading: boolean;
 }
 
 class EditorView extends React.Component<{}, IState> {
@@ -51,7 +57,10 @@ class EditorView extends React.Component<{}, IState> {
       markedSchema: new Schema(),
       propertyIndex: -1,
       optionDialogOpen: false,
-      removeDialogOpen: false
+      removeDialogOpen: false,
+      alertDialogOpen: false,
+      alertMessage: '',
+      loading: false
     };
 
     this.saveSchema = this.saveSchema.bind(this);
@@ -67,8 +76,10 @@ class EditorView extends React.Component<{}, IState> {
     this.updatePropertyOptions = this.updatePropertyOptions.bind(this);
     this.openOptionDialog = this.openOptionDialog.bind(this);
     this.openRemoveDialog = this.openRemoveDialog.bind(this);
+    this.openAlertDialog = this.openAlertDialog.bind(this);
     this.closeOptionDialog = this.closeOptionDialog.bind(this);
     this.closeRemoveDialog = this.closeRemoveDialog.bind(this);
+    this.closeAlertDialog = this.closeAlertDialog.bind(this);
   }
 
   public componentDidMount(): void {
@@ -78,7 +89,7 @@ class EditorView extends React.Component<{}, IState> {
   }
 
   public render() {
-    const {editMode, schemas, schema, optionDialogOpen, removeDialogOpen} = this.state;
+    const {editMode, schemas, schema, optionDialogOpen, removeDialogOpen, alertDialogOpen, alertMessage, loading} = this.state;
     const canRemoveProperty: boolean = schema.properties.length > 0;
     const schemaProperties = schema.properties.map((p: Property, i: number) => {
       return this.renderProperty(p, i);
@@ -86,6 +97,10 @@ class EditorView extends React.Component<{}, IState> {
 
     return (
       <div>
+        <Backdrop open={loading} className='backdrop'>
+          <CircularProgress color="inherit" />
+        </Backdrop>
+        <AlertDialog open={alertDialogOpen} message={alertMessage} onClose={this.closeAlertDialog}/>
         <AddPropertyOptionDialog open={optionDialogOpen} onClose={this.closeOptionDialog} onAdd={this.updatePropertyOptions}/>
         <RemoveDialog open={removeDialogOpen} title={'Remove Schema'} object={'Schema'} onClose={this.closeRemoveDialog} onRemove={this.removeSchema}/>
         <Typography variant='h3'>Schema Editor</Typography>
@@ -120,6 +135,7 @@ class EditorView extends React.Component<{}, IState> {
             <Grid container spacing={3}>
               <Grid item xs={12} sm={6} md={3} lg={2}>
                 <Button
+                  disabled={editMode}
                   fullWidth
                   variant="contained"
                   color="primary"
@@ -132,7 +148,7 @@ class EditorView extends React.Component<{}, IState> {
 
               <Grid item xs={12} sm={6} md={3} lg={2}>
                 <Button
-                  disabled={!canRemoveProperty}
+                  disabled={!canRemoveProperty || editMode}
                   fullWidth
                   variant="contained"
                   color="primary"
@@ -183,33 +199,46 @@ class EditorView extends React.Component<{}, IState> {
 
   private async saveSchema(): Promise<any> {
     const {schema, schemas} = this.state;
+    this.setState({loading: true});
     schema.id = schemas.length;
     const values = await SchemaProvider.postSchema(schema);
     if (values.error) {
       console.log(values.error);
+      this.setState({alertMessage: values.error.message});
+      this.openAlertDialog();
     } else {
       this.setState({schemas: values.schemas});
     }
+    this.setState({loading: false});
   }
 
   private async updateSchema(): Promise<any> {
     const {schema} = this.state;
+    this.setState({loading: true});
     const values = await SchemaProvider.putSchema(schema);
     if (values.error) {
       console.log(values.error);
+      this.setState({alertMessage: values.error.message});
+      this.openAlertDialog();
     } else {
       this.setState({schemas: values.schemas});
     }
+    this.setState({loading: false});
   }
 
   private async removeSchema(): Promise<any> {
     const {markedSchema} = this.state;
+    this.setState({loading: true});
     const values = await SchemaProvider.deleteSchema(markedSchema.id);
     if (values.error) {
       console.log(values.error);
+      this.setState({alertMessage: values.error.message});
+      this.openAlertDialog();
     } else {
-      this.setState({schemas: values.schemas});
+      this.setState({markedSchema: new Schema(), schemas: values.schemas});
     }
+    this.closeRemoveDialog();
+    this.setState({loading: false});
   }
 
   private resetSchema(): void {
@@ -217,7 +246,8 @@ class EditorView extends React.Component<{}, IState> {
   }
 
   private editSchema(schema: Schema): void {
-    this.setState({schema, editMode: true});
+    this.setState({schema, editMode: true, alertMessage: 'When in edit mode, you cannot modify the current schema properties. You may only change the name, year, or description.'});
+    this.openAlertDialog();
   }
 
   private renderSchemas(schemas: Schema[]): React.ReactElement {
@@ -242,7 +272,7 @@ class EditorView extends React.Component<{}, IState> {
   }
 
   private renderProperty(property: Property, i: number): React.ReactNode {
-    const {schema} = this.state;
+    const {editMode, schema} = this.state;
     switch (property.type) {
       case "string":
         const stringProp: StringProperty = schema.properties[i] as StringProperty;
@@ -250,11 +280,11 @@ class EditorView extends React.Component<{}, IState> {
           <Grid key={`Property ${i}`} container spacing={2}>
             {/* String inputs */}
             <Grid item xs={12} sm={6} md={3} lg={3}>
-              <TextField value={stringProp.name} fullWidth required label="Property Name" onChange={(e: React.ChangeEvent<HTMLInputElement>) => this.updatePropertyName(i, e.target.value)}/>
+              <TextField disabled={editMode} value={stringProp.name} fullWidth required label="Property Name" onChange={(e: React.ChangeEvent<HTMLInputElement>) => this.updatePropertyName(i, e.target.value)}/>
             </Grid>
             {this.renderPropertyTypes(i)}
             <Grid item xs={12} sm={6} md={6} lg={6}>
-              <TextField value={stringProp.defaultValue} fullWidth required label="Default" onChange={(e: React.ChangeEvent<HTMLInputElement>) => this.updatePropertyDefaultValue(i, e.target.value)}/>
+              <TextField disabled={editMode} value={stringProp.defaultValue} fullWidth required label="Default" onChange={(e: React.ChangeEvent<HTMLInputElement>) => this.updatePropertyDefaultValue(i, e.target.value)}/>
             </Grid>
           </Grid>
         );
@@ -264,17 +294,17 @@ class EditorView extends React.Component<{}, IState> {
           <Grid key={`Property ${i}`} container spacing={2}>
             {/* Number inputs */}
             <Grid item xs={12} sm={6} md={3} lg={3}>
-              <TextField value={numberProp.name} fullWidth required label="Property Name" onChange={(e: React.ChangeEvent<HTMLInputElement>) => this.updatePropertyName(i, e.target.value)}/>
+              <TextField disabled={editMode} value={numberProp.name} fullWidth required label="Property Name" onChange={(e: React.ChangeEvent<HTMLInputElement>) => this.updatePropertyName(i, e.target.value)}/>
             </Grid>
             {this.renderPropertyTypes(i)}
             <Grid item xs={12} sm={6} md={2} lg={2}>
-              <TextField value={numberProp.defaultValue} fullWidth required label="Default" type='number' onChange={(e: React.ChangeEvent<HTMLInputElement>) => this.updatePropertyDefaultValue(i, e.target.value)}/>
+              <TextField disabled={editMode} value={numberProp.defaultValue} fullWidth required label="Default" inputProps={{type: 'number'}} onChange={(e: React.ChangeEvent<HTMLInputElement>) => this.updatePropertyDefaultValue(i, e.target.value)}/>
             </Grid>
             <Grid item xs={12} sm={6} md={2} lg={2}>
-              <TextField value={numberProp.min} fullWidth required label="Min Value" type='number' onChange={(e: React.ChangeEvent<HTMLInputElement>) => this.updatePropertyMin(i, e.target.value)}/>
+              <TextField disabled={editMode} value={numberProp.min} fullWidth required label="Min Value" inputProps={{type: 'number'}} onChange={(e: React.ChangeEvent<HTMLInputElement>) => this.updatePropertyMin(i, e.target.value)}/>
             </Grid>
             <Grid item xs={12} sm={6} md={2} lg={2}>
-              <TextField value={numberProp.max} fullWidth required label="Max Value" type='number' onChange={(e: React.ChangeEvent<HTMLInputElement>) => this.updatePropertyMax(i, e.target.value)}/>
+              <TextField disabled={editMode} value={numberProp.max} fullWidth required label="Max Value" inputProps={{type: 'number'}} onChange={(e: React.ChangeEvent<HTMLInputElement>) => this.updatePropertyMax(i, e.target.value)}/>
             </Grid>
           </Grid>
         );
@@ -284,11 +314,11 @@ class EditorView extends React.Component<{}, IState> {
           <Grid key={`Property ${i}`} container spacing={2}>
             {/* Boolean inputs */}
             <Grid item xs={12} sm={6} md={3} lg={3}>
-              <TextField value={booleanProp.name} fullWidth required label="Property Name" onChange={(e: React.ChangeEvent<HTMLInputElement>) => this.updatePropertyName(i, e.target.value)}/>
+              <TextField disabled={editMode} value={booleanProp.name} fullWidth required label="Property Name" onChange={(e: React.ChangeEvent<HTMLInputElement>) => this.updatePropertyName(i, e.target.value)}/>
             </Grid>
             {this.renderPropertyTypes(i)}
             <Grid item xs={12} sm={6} md={2} lg={2}>
-              <FormControl fullWidth>
+              <FormControl disabled={editMode} fullWidth>
                 <InputLabel id="property-boolean-label">Default Value</InputLabel>
                 <NativeSelect
                   value={booleanProp.defaultValue}
@@ -311,11 +341,11 @@ class EditorView extends React.Component<{}, IState> {
           <Grid key={`Property ${i}`} container spacing={2}>
             {/* Dropdown inputs */}
             <Grid item xs={12} sm={6} md={3} lg={3}>
-              <TextField value={dropdownProp.name} fullWidth required label="Property Name" onChange={(e: React.ChangeEvent<HTMLInputElement>) => this.updatePropertyName(i, e.target.value)}/>
+              <TextField disabled={editMode} value={dropdownProp.name} fullWidth required label="Property Name" onChange={(e: React.ChangeEvent<HTMLInputElement>) => this.updatePropertyName(i, e.target.value)}/>
             </Grid>
             {this.renderPropertyTypes(i)}
             <Grid item xs={12} sm={6} md={3} lg={3}>
-              <FormControl fullWidth>
+              <FormControl disabled={editMode} fullWidth>
                 <InputLabel id="property-dropdown-label">Options</InputLabel>
                 <NativeSelect
                   value={dropdownProp.defaultValue}
@@ -337,6 +367,7 @@ class EditorView extends React.Component<{}, IState> {
             </Grid>
             <Grid item xs={12} sm={6} md={3} lg={3} className={'center-items-end'}>
               <Button
+                disabled={editMode}
                 fullWidth
                 variant="contained"
                 color="primary"
@@ -354,11 +385,11 @@ class EditorView extends React.Component<{}, IState> {
           <Grid key={`Property ${i}`} container spacing={2}>
             {/* String inputs */}
             <Grid item xs={12} sm={6} md={3} lg={3}>
-              <TextField value={defaultProp.name} fullWidth required label="Property Name" onChange={(e: React.ChangeEvent<HTMLInputElement>) => this.updatePropertyName(i, e.target.value)}/>
+              <TextField disabled={editMode} value={defaultProp.name} fullWidth required label="Property Name" onChange={(e: React.ChangeEvent<HTMLInputElement>) => this.updatePropertyName(i, e.target.value)}/>
             </Grid>
             {this.renderPropertyTypes(i)}
             <Grid item xs={12} sm={6} md={6} lg={6}>
-              <TextField value={defaultProp.defaultValue} fullWidth required label="Default" onChange={(e: React.ChangeEvent<HTMLInputElement>) => this.updatePropertyDefaultValue(i, e.target.value)}/>
+              <TextField disabled={editMode} value={defaultProp.defaultValue} fullWidth required label="Default" onChange={(e: React.ChangeEvent<HTMLInputElement>) => this.updatePropertyDefaultValue(i, e.target.value)}/>
             </Grid>
           </Grid>
         );
@@ -366,11 +397,11 @@ class EditorView extends React.Component<{}, IState> {
   }
 
   private renderPropertyTypes(i: number) {
-    const {schema} = this.state;
+    const {editMode, schema} = this.state;
     const property: Property = schema.properties[i];
     return (
       <Grid item xs={12} sm={6} md={3} lg={3}>
-        <FormControl fullWidth>
+        <FormControl disabled={editMode} fullWidth>
           <InputLabel id="property-type-label">Property Type</InputLabel>
           <NativeSelect
             value={property.type}
@@ -506,12 +537,20 @@ class EditorView extends React.Component<{}, IState> {
     this.setState({removeDialogOpen: true, markedSchema: schema});
   }
 
+  private openAlertDialog(): void {
+    this.setState({alertDialogOpen: true});
+  }
+
   private closeOptionDialog(): void {
     this.setState({optionDialogOpen: false});
   }
 
   private closeRemoveDialog(): void {
     this.setState({removeDialogOpen: false});
+  }
+
+  private closeAlertDialog(): void {
+    this.setState({alertDialogOpen: false, alertMessage: ''});
   }
 }
 

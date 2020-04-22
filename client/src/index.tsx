@@ -6,7 +6,7 @@ import './index.css';
 import App from './App';
 import SchemaProvider from "./providers/SchemaProvider";
 
-SchemaProvider.initialize('localhost', 8080);
+SchemaProvider.initialize('http://localhost', 8080);
 
 ReactDOM.render(
   <BrowserRouter>

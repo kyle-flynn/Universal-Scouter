@@ -16,7 +16,7 @@ app.use(express.static(path.join(__dirname, '../../client/build')));
 app.use('/api/schemas', SchemaController);
 app.use('/api/entries', SchemaEntriesController);
 
-app.get('/api//ping', (req: Request, res: Response) => {
+app.get('/api/ping', (req: Request, res: Response) => {
   res.send('pong!');
 });
 

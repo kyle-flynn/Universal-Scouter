@@ -57,7 +57,7 @@ const routes: IAppRoute[] = [
     icon: <GitHubIcon/>,
     to: '/contribute',
     group: 1,
-    component: (routeProps: RouteProps) => <div>Github Page</div>,
+    component: (routeProps: RouteProps) => <div>Want to contribute? Visit the repository <a className='inline-link' href='https://github.com/kyle-flynn/universal-scouter'>here</a></div>,
     visible: true
   }
 ];

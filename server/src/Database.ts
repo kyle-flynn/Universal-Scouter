@@ -57,7 +57,7 @@ class Database {
   public updateSchema(schema: Schema): Promise<object[]> {
     return new Promise<object[]>((resolve, reject) => {
       const propertyJSON: any = schema.properties.map((p: Property) => p.toJSON());
-      this.db.all(`UPDATE 'schemas' SET name = '${schema.name}', year = ${schema.year}, description = '${schema.description}', properties = '${JSON.stringify(propertyJSON)}' competition = '${schema.competition}' WHERE id = ${schema.id};`, (err: any, rows: any[]) => {
+      this.db.all(`UPDATE 'schemas' SET name = '${schema.name}', year = ${schema.year}, description = '${schema.description}', properties = '${JSON.stringify(propertyJSON)}', competition = '${schema.competition}' WHERE id = ${schema.id};`, (err: any, rows: any[]) => {
         if (err) {
           reject(err);
         } else {
@@ -70,6 +70,18 @@ class Database {
   public removeSchema(id: number): Promise<object[]> {
     return new Promise<object[]>((resolve, reject) => {
       this.db.all(`DELETE FROM 'schemas' WHERE id = ${id};`, (err: any, rows: any[]) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(rows);
+        }
+      });
+    });
+  }
+
+  public dropEntryTable(id: number): Promise<any> {
+    return new Promise<object[]>((resolve, reject) => {
+      this.db.all(`DROP TABLE 'entry_${id}';`, (err: any, rows: any[]) => {
         if (err) {
           reject(err);
         } else {

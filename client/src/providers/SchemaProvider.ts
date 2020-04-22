@@ -37,9 +37,9 @@ class SchemaProvider {
 
   private constructor() {}
 
-  public initialize(host: string, port: number): void {
+  public initialize(host: string, port?: number): void {
     this.config = {
-      baseURL: `http://${host}:${port}/api`
+      baseURL: `${host}${port ? (':' + port) : ''}/api`
     };
     this.axios = Axios.create(this.config);
   }
